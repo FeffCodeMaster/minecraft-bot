@@ -18,11 +18,12 @@ async function work() {
         if (!foundAxe) {
             baseBot.bot.chat('Could not find chest or no axe found in the chest.');
             baseBot.bot.chat('Returning to base.');
-            returnToBase(baseBot.bot, work);
-            return;
+
+            returnToBase(baseBot.bot, () => {setTimeout(work, MS_BETWEEN_ACTIONS)});
+        } else {
+            setTimeout(findingBlockToChop, MS_BETWEEN_ACTIONS);
         }
 
-        setTimeout(findingBlockToChop, MS_BETWEEN_ACTIONS);
 
     } else {
         baseBot.bot.chat('Searching for a block to chop.');
@@ -226,8 +227,6 @@ function pickUpNearbyItems(blockDrops) {
     if (droppedItems.length > 0) {
         const nearestItem = droppedItems[0];  // Pick the first dropped item (you could add sorting if necessary)
         baseBot.bot.chat('Found dropped wood. Moving to pick it up.');
-
-        console.log(nearestItem);
 
         // Move the bot near the dropped item
         const goal = new GoalNear(nearestItem.position.x, nearestItem.position.y, nearestItem.position.z, 1);

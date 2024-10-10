@@ -75,6 +75,7 @@ function returnToBase(bot, action){
   bot.once('goal_reached', () => {
     bot.chat('I am here!');
     if(action){
+      bot.chat('Doing my action when returning to base.');
       action();
     }
   });
