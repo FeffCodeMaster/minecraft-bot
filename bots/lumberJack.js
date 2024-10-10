@@ -1,5 +1,6 @@
 const { BaseBot, returnToBase, chat } = require('../base/BaseBot.js');
 const { pathfinder, Movements, goals: { GoalNear } } = require('mineflayer-pathfinder');
+const {LUBER_BASE_POSITION} = require('../constants/bases.js');
 
 // Define a threshold for the number of logs
 const LOG_THRESHOLD = 64;
@@ -20,7 +21,7 @@ async function work() {
             chat(baseBot, 'Could not find chest or no axe found in the chest.');
             chat(baseBot, 'Returning to base.');
 
-            returnToBase(baseBot.bot, () => {setTimeout(work, MS_BETWEEN_ACTIONS)});
+            returnToBase(baseBot, () => {setTimeout(work, MS_BETWEEN_ACTIONS)});
         } else {
             setTimeout(findingBlockToChop, MS_BETWEEN_ACTIONS);
         }
@@ -58,7 +59,7 @@ function findingBlockToChop(){
         }
     } else {
         chat(baseBot, 'No wood nearby. I will rest now.', true);
-        setTimeout(() => {returnToBase()}, MS_BETWEEN_ACTIONS);
+        setTimeout(() => {returnToBase(baseBot)}, MS_BETWEEN_ACTIONS);
         stop();
     }
 }
@@ -260,7 +261,7 @@ function checkInventoryAndDecide() {
 
         if (totalLogs >= LOG_THRESHOLD) {
             chat(baseBot, `I have reached the log limit of ${LOG_THRESHOLD}. I will stop or store logs.`, true);
-            storeLogsInChest();  // Example: Call a function to store the logs
+            returnToBase(baseBot, () => {setTimeout(storeLogsInChest, MS_BETWEEN_ACTIONS)});
         } else {
             setTimeout(work, MS_BETWEEN_ACTIONS);  // Resume working after checking the inventory
         }
@@ -322,4 +323,4 @@ async function storeLogsInChest() {
 const arguments = process.argv.slice(2);
 const botName = arguments[0] || "LumberJack";
 
-const baseBot = new BaseBot(botName, work, stop);
+const baseBot = new BaseBot(botName, work, stop, LUBER_BASE_POSITION);
