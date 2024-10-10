@@ -1,4 +1,4 @@
-const { BaseBot } = require('../base/BaseBot.js');
+const { BaseBot, returnToBase } = require('../base/BaseBot.js');
 const { pathfinder, Movements, goals: { GoalNear } } = require('mineflayer-pathfinder');
 
 // Define a threshold for the number of logs
@@ -16,7 +16,10 @@ async function work() {
         const foundAxe = await findAndEquipAxeInChest();
 
         if (!foundAxe) {
-            baseBot.bot.chat('No axe found in the chest. Stopping work.');
+            baseBot.bot.chat('Could not find chest or no axe found in the chest.');
+            baseBot.bot.chat('Returning to base.');
+            returnToBase(baseBot.bot, work);
+            return;
         }
 
         setTimeout(findingBlockToChop, MS_BETWEEN_ACTIONS);
@@ -178,7 +181,7 @@ function stop() {
 // Function to move the bot to the wood block and chop it
 function moveToBlockAndChop(woodBlock) {
     const distance = baseBot.bot.entity.position.distanceTo(woodBlock.position);
-    if (distance > 5) {
+    if (distance > MAX_REACH_HEIGHT) {
         baseBot.bot.chat('Moving closer to the wood block.');
         const goal = new GoalNear(woodBlock.position.x, woodBlock.position.y, woodBlock.position.z, MAX_REACH_HEIGHT); // Move within 1 block of wood
         baseBot.bot.pathfinder.setGoal(goal);
@@ -208,38 +211,35 @@ async function startChopping(woodBlock) {
         }
         // After chopping, pick up the wood before resuming work
 
-        setTimeout(pickUpNearbyItems, 1000);
+        setTimeout(() => { pickUpNearbyItems(woodBlock.drops) }, MS_BETWEEN_ACTIONS);
     } catch (err) {
         baseBot.bot.chat(`Couldn't chop ${woodBlock.name}: ${err.message}`);
     }
 }
 
 
-function pickUpNearbyItems() {
-    try {
-        const droppedItems = Object.values(baseBot.bot.entities).filter(entity => {
-            return entity.displayName === 'item' && entity.metadata[7].name.includes('log');  // Check if the item is wood
-        });
+function pickUpNearbyItems(blockDrops) {
+    const droppedItems = Object.values(baseBot.bot.entities).filter(entity => {
+        return entity.displayName === 'Item' && blockDrops.includes(entity.metadata[8].itemId) ;  // Check if the item is wood
+    });
 
-        if (droppedItems.length > 0) {
-            const nearestItem = droppedItems[0];  // Pick the first dropped item (you could add sorting if necessary)
-            baseBot.bot.chat('Found dropped wood. Moving to pick it up.');
+    if (droppedItems.length > 0) {
+        const nearestItem = droppedItems[0];  // Pick the first dropped item (you could add sorting if necessary)
+        baseBot.bot.chat('Found dropped wood. Moving to pick it up.');
 
-            // Move the bot near the dropped item
-            const goal = new GoalNear(nearestItem.position.x, nearestItem.position.y, nearestItem.position.z, 1);
-            baseBot.bot.pathfinder.setGoal(goal);
+        console.log(nearestItem);
 
-            baseBot.bot.once('goal_reached', () => {
-                baseBot.bot.chat('Picked up the wood.');
-                setTimeout(checkInventoryAndDecide, MS_BETWEEN_ACTIONS);
-            });
-        } else {
-            baseBot.bot.chat('No dropped items found.');
+        // Move the bot near the dropped item
+        const goal = new GoalNear(nearestItem.position.x, nearestItem.position.y, nearestItem.position.z, 1);
+        baseBot.bot.pathfinder.setGoal(goal);
+
+        baseBot.bot.once('goal_reached', () => {
+            baseBot.bot.chat('Picked up the wood.');
             setTimeout(checkInventoryAndDecide, MS_BETWEEN_ACTIONS);
-        }
-    } catch (err) {
-        baseBot.bot.chat('Error finding dropped items.');
-
+        });
+    } else {
+        baseBot.bot.chat('No dropped items found.');
+        setTimeout(checkInventoryAndDecide, MS_BETWEEN_ACTIONS);
     }
 }
 

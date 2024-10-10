@@ -1,6 +1,12 @@
 const mineflayer = require('mineflayer');
 const { pathfinder, Movements, goals: { GoalNear } } = require('mineflayer-pathfinder');
 
+const BASE_POSITION = {
+  x: -3,
+  y: 75,
+  z: 56
+}
+
 class BaseBot {
   constructor(username, work, stop) {
         const options = {
@@ -44,19 +50,36 @@ class BaseBot {
                 else if(action.toLowerCase() === 'work') {
                     this.bot.chat('I will start working now.');
                     work();
+                } else if(action.toLowerCase() === 'return') {
+                  this.bot.chat('I will return to base now.');
+                  moveToPosition(BASE_POSITION, this.bot);
                 }
             }
           });
     }
 }
 
-function moveToPlayer(playerPos, bot) {
-    const goal = new GoalNear(playerPos.x, playerPos.y, playerPos.z, 1); 
-    bot.pathfinder.setGoal(goal);
-    
-    bot.once('goal_reached', () => {
-      bot.chat('I am here!');
-    });
+function moveToPosition(position, bot) {
+  const goal = new GoalNear(position.x, position.y, position.z, 1); 
+  bot.pathfinder.setGoal(goal);
+  
+  bot.once('goal_reached', () => {
+    bot.chat('I am here!');
+  });
 }
 
-module.exports = { BaseBot, ...module.exports }
+function returnToBase(bot, action){
+  const goal = new GoalNear(BASE_POSITION.x, BASE_POSITION.y, BASE_POSITION.z, 1); 
+  bot.pathfinder.setGoal(goal);
+  
+  bot.once('goal_reached', () => {
+    bot.chat('I am here!');
+    if(action){
+      action();
+    }
+  });
+}
+
+
+
+module.exports = { BaseBot, returnToBase, ...module.exports }
