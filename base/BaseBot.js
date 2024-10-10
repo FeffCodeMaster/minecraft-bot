@@ -8,15 +8,18 @@ const BASE_POSITION = {
 }
 
 class BaseBot {
-  constructor(username, work, stop) {
+  constructor(username, work, stop, importantCommunication = false) {
         const options = {
             host: 'localhost',
             port: 25565,
             username: username
         };
-
+        this.fullStatus = importantCommunication;
         this.bot = mineflayer.createBot(options);
         this.bot.loadPlugin(pathfinder);
+        this.intervalBetweenReports = null;
+        this.intervalBetweenReportsTime = 30000;
+        this.noReportCounter = 0;
 
         this.bot.on('spawn', () => {
             // Set up default movements
@@ -38,7 +41,7 @@ class BaseBot {
                     this.bot.chat('On my way!');
                     
                     const playerPos = player.entity.position;
-                    moveToPlayer(playerPos, this.bot); 
+                    moveToPosition(playerPos, this.bot); 
                   } else {
                     this.bot.chat('I cannot find you.');
                   }
@@ -53,6 +56,15 @@ class BaseBot {
                 } else if(action.toLowerCase() === 'return') {
                   this.bot.chat('I will return to base now.');
                   moveToPosition(BASE_POSITION, this.bot);
+                } else if(action.toLowerCase() === 'status') {
+                  this.fullStatus = !this.fullStatus;
+                  
+                  if(this.fullStatus){
+                    this.bot.chat('Status report: Full');
+                  } else {
+                    this.bot.chat('Status report: Just improtant');
+                  }
+            
                 }
             }
           });
@@ -69,7 +81,7 @@ function moveToPosition(position, bot) {
 }
 
 function returnToBase(bot, action){
-  const goal = new GoalNear(BASE_POSITION.x, BASE_POSITION.y, BASE_POSITION.z, 1); 
+  const goal = new GoalNear(BASE_POSITION.x, BASE_POSITION.y, BASE_POSITION.z, 10); 
   bot.pathfinder.setGoal(goal);
   
   bot.once('goal_reached', () => {
@@ -81,6 +93,25 @@ function returnToBase(bot, action){
   });
 }
 
+function chat(baseBot, message, important) {
+  clearTimeout(baseBot.intervalBetweenReports);
+  if(baseBot.fullStatus || important){
+    baseBot.bot.chat(message);
+  } 
+
+ baseBot.intervalBetweenReports = setTimeout(() => {
+  chat(baseBot, "I haven't reported to base for a while.", true);
+  baseBot.noReportCounter++;
+
+  if(baseBot.noReportCounter >= 1){
+    baseBot.noReportCounter = 0;
+
+    returnToBase(baseBot.bot, null);
+  } 
+
+ },baseBot.intervalBetweenReportsTime); 
+}
 
 
-module.exports = { BaseBot, returnToBase, ...module.exports }
+
+module.exports = { BaseBot, returnToBase, chat,  ...module.exports }

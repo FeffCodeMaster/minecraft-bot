@@ -1,23 +1,24 @@
-const { BaseBot, returnToBase } = require('../base/BaseBot.js');
+const { BaseBot, returnToBase, chat } = require('../base/BaseBot.js');
 const { pathfinder, Movements, goals: { GoalNear } } = require('mineflayer-pathfinder');
 
 // Define a threshold for the number of logs
 const LOG_THRESHOLD = 64;
 const MAX_REACH_HEIGHT = 4;
+const MAX_DISTANCE_TO_CHOP = 5;
 const MS_BETWEEN_ACTIONS = 1250;
 const ignoredBlocks = [];  // Array to store ignored blockst
 
 // Work function for LumberJack to start chopping wood
 async function work() {
     if (!hasAxeEquipped()) {
-        baseBot.bot.chat('Looking for an axe before starting work.');
+        chat(baseBot, 'Looking for an axe before starting work.');
 
         // Look for the axe in a chest and equip it
         const foundAxe = await findAndEquipAxeInChest();
 
         if (!foundAxe) {
-            baseBot.bot.chat('Could not find chest or no axe found in the chest.');
-            baseBot.bot.chat('Returning to base.');
+            chat(baseBot, 'Could not find chest or no axe found in the chest.');
+            chat(baseBot, 'Returning to base.');
 
             returnToBase(baseBot.bot, () => {setTimeout(work, MS_BETWEEN_ACTIONS)});
         } else {
@@ -26,7 +27,7 @@ async function work() {
 
 
     } else {
-        baseBot.bot.chat('Searching for a block to chop.');
+        chat(baseBot, 'Searching for a block to chop.');
         setTimeout(findingBlockToChop, MS_BETWEEN_ACTIONS);
     }
 }
@@ -44,7 +45,7 @@ function findingBlockToChop(){
 
         // Ignore the block if it's too high or too low to reach
         if (heightDifference > MAX_REACH_HEIGHT) {
-            baseBot.bot.chat(`Ignoring ${woodBlock.name} as it is too high to reach.`);
+            chat(baseBot, `Ignoring ${woodBlock.name} as it is too high to reach.`);
             ignoredBlocks.push({
                 x: woodBlock.position.x,
                 y: woodBlock.position.y,
@@ -52,11 +53,12 @@ function findingBlockToChop(){
             });
             setTimeout(findingBlockToChop, MS_BETWEEN_ACTIONS);  // Search for another block
         } else {
-            baseBot.bot.chat('Found reachable wood.');
+            chat(baseBot, 'Found reachable wood.');
             moveToBlockAndChop(woodBlock);
         }
     } else {
-        baseBot.bot.chat('No wood nearby. I will rest now.');
+        chat(baseBot, 'No wood nearby. I will rest now.', true);
+        setTimeout(() => {returnToBase()}, MS_BETWEEN_ACTIONS);
         stop();
     }
 }
@@ -64,7 +66,7 @@ function findingBlockToChop(){
 
 // Function to find and equip an axe from the chest
 async function findAndEquipAxeInChest() {
-    baseBot.bot.chat('Looking for an axe in the chest.');
+    chat(baseBot, 'Looking for an axe in the chest.');
   
     try {
       // Find a nearby chest
@@ -74,7 +76,7 @@ async function findAndEquipAxeInChest() {
       });
   
       if (chestBlock) {
-        baseBot.bot.chat('Found a chest. Moving to it.');
+        chat(baseBot, 'Found a chest. Moving to it.');
         
         // Move to the chest
         const goal = new GoalNear(chestBlock.position.x, chestBlock.position.y, chestBlock.position.z, 1);
@@ -82,7 +84,7 @@ async function findAndEquipAxeInChest() {
   
         return new Promise((resolve, reject) => {
           baseBot.bot.once('goal_reached', async () => {
-            baseBot.bot.chat('Reached the chest. Checking for an axe.');
+            chat(baseBot, 'Reached the chest. Checking for an axe.');
   
             // Open the chest container
             const chest = await baseBot.bot.openContainer(chestBlock);
@@ -92,12 +94,12 @@ async function findAndEquipAxeInChest() {
             const axeInChest = chest.slots.find(item => item && axeTypes.includes(item.name));
   
             if (axeInChest) {
-              baseBot.bot.chat(`Found an axe (${axeInChest.name}). Moving it to inventory.`);
+              chat(baseBot, `Found an axe (${axeInChest.name}). Moving it to inventory.`);
   
               try {
                 // Transfer the axe to the bot's inventory
                 await chest.withdraw(axeInChest.type, null, axeInChest.count);
-                baseBot.bot.chat(`Successfully moved the axe to inventory.`);
+                chat(baseBot, `Successfully moved the axe to inventory.`);
                 chest.close();
                 
                 // Now equip the axe from the inventory
@@ -106,23 +108,23 @@ async function findAndEquipAxeInChest() {
                     resolve(true);  
                 }, MS_BETWEEN_ACTIONS);
               } catch (transferErr) {
-                baseBot.bot.chat(`Failed to transfer axe to inventory: ${transferErr.message}`);
+                chat(baseBot, `Failed to transfer axe to inventory: ${transferErr.message}`, true);
                 chest.close();
                 resolve(false);  // Failed to transfer
               }
             } else {
-              baseBot.bot.chat('No axe found in the chest.');
+              chat(baseBot, 'No axe found in the chest.', true);
               chest.close();
               resolve(false);  // No axe found
             }
           });
         });
       } else {
-        baseBot.bot.chat('No chest found nearby.');
+        chat(baseBot, 'No chest found nearby.', true);
         return false;  // No chest found
       }
     } catch (err) {
-      baseBot.bot.chat('Error while searching for an axe in the chest.');
+      chat(baseBot, 'Error while searching for an axe in the chest.', true);
       logError(err);
       return false;
     }
@@ -135,16 +137,16 @@ async function findAndEquipAxeInChest() {
     const axeInInventory = baseBot.bot.inventory.items().find(item => axeTypes.includes(item.name));
   
     if (axeInInventory) {
-      baseBot.bot.chat(`Found an axe (${axeInInventory.name}) in the inventory. Attempting to equip.`);
+      chat(baseBot, `Found an axe (${axeInInventory.name}) in the inventory. Attempting to equip.`);
   
       try {
         await baseBot.bot.equip(axeInInventory, 'hand');  // Equip the axe in the hand
-        baseBot.bot.chat('Successfully equipped the axe from inventory.');
+        chat(baseBot, 'Successfully equipped the axe from inventory.');
       } catch (err) {
-        baseBot.bot.chat(`Failed to equip axe from inventory: ${err.message}`);
+        chat(baseBot, `Failed to equip axe from inventory: ${err.message}`, true);
       }
     } else {
-      baseBot.bot.chat('No axe found in inventory to equip.');
+      chat(baseBot, 'No axe found in inventory to equip.', true);
     }
   }
   
@@ -156,9 +158,9 @@ function hasAxeEquipped() {
   
     // Debugging check to see if the bot actually has an item in hand
     if (heldItem) {
-      baseBot.bot.chat(`Currently holding: ${heldItem.name}`);
+      chat(baseBot, `Currently holding: ${heldItem.name}`);
     } else {
-      baseBot.bot.chat('Not holding any item.');
+      chat(baseBot, 'Not holding any item.');
     }
   
     return heldItem && axeTypes.includes(heldItem.name);
@@ -175,20 +177,20 @@ function isIgnoredBlock(block) {
 
 // Function to stop the bot from working
 function stop() {
-    baseBot.bot.chat('Stopping work. Resting now.');
+    chat(baseBot, 'Stopping work. Resting now.', true);
     baseBot.bot.stopDigging();
 }
 
 // Function to move the bot to the wood block and chop it
 function moveToBlockAndChop(woodBlock) {
     const distance = baseBot.bot.entity.position.distanceTo(woodBlock.position);
-    if (distance > MAX_REACH_HEIGHT) {
-        baseBot.bot.chat('Moving closer to the wood block.');
-        const goal = new GoalNear(woodBlock.position.x, woodBlock.position.y, woodBlock.position.z, MAX_REACH_HEIGHT); // Move within 1 block of wood
+    if (distance > MAX_DISTANCE_TO_CHOP) {
+        chat(baseBot, 'Moving closer to the wood block.');
+        const goal = new GoalNear(woodBlock.position.x, woodBlock.position.y, woodBlock.position.z, MAX_DISTANCE_TO_CHOP); // Move within 1 block of wood
         baseBot.bot.pathfinder.setGoal(goal);
 
         baseBot.bot.once('goal_reached', () => {
-            baseBot.bot.chat('Reached the wood block.');
+            chat(baseBot, 'Reached the wood block.');
             startChopping(woodBlock);
         });
     } else {
@@ -200,7 +202,7 @@ function moveToBlockAndChop(woodBlock) {
 // Function to start chopping wood with error handling
 async function startChopping(woodBlock) {
     if (!woodBlock) {
-        baseBot.bot.chat('No valid wood block to chop.');
+        chat(baseBot, 'No valid wood block to chop.');
         return;
     }
 
@@ -208,13 +210,13 @@ async function startChopping(woodBlock) {
         // Chop the wood asynchronously
         if (woodBlock.diggable) {
             await baseBot.bot.dig(woodBlock);
-            baseBot.bot.chat(`Finished chopping wood`);
+            chat(baseBot, `Finished chopping wood`);
         }
         // After chopping, pick up the wood before resuming work
 
         setTimeout(() => { pickUpNearbyItems(woodBlock.drops) }, MS_BETWEEN_ACTIONS);
     } catch (err) {
-        baseBot.bot.chat(`Couldn't chop ${woodBlock.name}: ${err.message}`);
+        chat(baseBot, `Couldn't chop ${woodBlock.name}: ${err.message}`, true);
     }
 }
 
@@ -226,18 +228,18 @@ function pickUpNearbyItems(blockDrops) {
 
     if (droppedItems.length > 0) {
         const nearestItem = droppedItems[0];  // Pick the first dropped item (you could add sorting if necessary)
-        baseBot.bot.chat('Found dropped wood. Moving to pick it up.');
+        chat(baseBot, 'Found dropped wood. Moving to pick it up.');
 
         // Move the bot near the dropped item
         const goal = new GoalNear(nearestItem.position.x, nearestItem.position.y, nearestItem.position.z, 1);
         baseBot.bot.pathfinder.setGoal(goal);
 
         baseBot.bot.once('goal_reached', () => {
-            baseBot.bot.chat('Picked up the wood.');
+            chat(baseBot, 'Picked up the wood.');
             setTimeout(checkInventoryAndDecide, MS_BETWEEN_ACTIONS);
         });
     } else {
-        baseBot.bot.chat('No dropped items found.');
+        chat(baseBot, 'No dropped items found.');
         setTimeout(checkInventoryAndDecide, MS_BETWEEN_ACTIONS);
     }
 }
@@ -254,16 +256,16 @@ function checkInventoryAndDecide() {
             }
         });
 
-        baseBot.bot.chat(`I have ${totalLogs} logs in my inventory.`);
+        chat(baseBot, `I have ${totalLogs} logs in my inventory.`, true);
 
         if (totalLogs >= LOG_THRESHOLD) {
-            baseBot.bot.chat(`I have reached the log limit of ${LOG_THRESHOLD}. I will stop or store logs.`);
+            chat(baseBot, `I have reached the log limit of ${LOG_THRESHOLD}. I will stop or store logs.`, true);
             storeLogsInChest();  // Example: Call a function to store the logs
         } else {
             setTimeout(work, MS_BETWEEN_ACTIONS);  // Resume working after checking the inventory
         }
     } catch (err) {
-        baseBot.bot.chat('Error checking inventory.');
+        chat(baseBot, 'Error checking inventory.');
 
     }
 }
@@ -277,14 +279,14 @@ async function storeLogsInChest() {
         });
 
         if (chestBlock) {
-            baseBot.bot.chat('Found a chest. Moving to it.');
+            chat(baseBot, 'Found a chest. Moving to it.');
 
             // Move to the chest
             const goal = new GoalNear(chestBlock.position.x, chestBlock.position.y, chestBlock.position.z, 1);
             baseBot.bot.pathfinder.setGoal(goal);
 
             baseBot.bot.once('goal_reached', async () => {
-                baseBot.bot.chat('Reached the chest. Storing logs.');
+                chat(baseBot, 'Reached the chest. Storing logs.');
 
                 // Open the chest container
                 const chest = await baseBot.bot.openContainer(chestBlock);
@@ -294,23 +296,23 @@ async function storeLogsInChest() {
                 for (const item of baseBot.bot.inventory.items()) {
                     if (woodTypes.includes(item.name)) {
                         await chest.deposit(item.type, null, item.count);
-                        baseBot.bot.chat(`Stored ${item.count} ${item.name} in the chest.`);
+                        chat(baseBot, `Stored ${item.count} ${item.name} in the chest.`, true);
                     }
                 }
 
                 // Close the chest when done
                 chest.close();
-                baseBot.bot.chat('Logs stored. Resuming work.');
+                chat(baseBot, 'Logs stored. Resuming work.');
 
                 // Resume chopping wood
                 setTimeout(work, MS_BETWEEN_ACTIONS);
             });
         } else {
-            baseBot.bot.chat('No chest found nearby. Continuing to chop wood.');
+            chat(baseBot, 'No chest found nearby. Continuing to chop wood.');
             setTimeout(work, MS_BETWEEN_ACTIONS);  // Continue working if no chest is found
         }
     } catch (err) {
-        baseBot.bot.chat('Error storing logs in chest.');
+        chat(baseBot, 'Error storing logs in chest.');
         logError(err);  // Log the error for debugging
         setTimeout(work, MS_BETWEEN_ACTIONS);  // Resume working after a delay
     }
