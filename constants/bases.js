@@ -1,14 +1,20 @@
 
-const LUBER_BASE_POSITION = {
+const LUMBER_BASE_STATION_POSITION = {
     x: -3,
     y: 75,
-    z: 56
+    z: 59
+}
+
+const LUMBER_BASE_POSITION = {
+    x: 13,
+    y: 76,
+    z: 61
 }
 
 const MINE_BASE_POSITION = {
-    x: -20,
+    x: -19,
     y: 59,
-    z: 75
+    z: 69
 }
 
 const MINE_BASE_STATION_POSITION = {
@@ -17,6 +23,12 @@ const MINE_BASE_STATION_POSITION = {
     z: 90
 }
 
+const FOOD_STATION_POSITION = {
+    x: 7,
+    y: 74,
+    z: 78
+}
 
 
-module.exports = {LUBER_BASE_POSITION, MINE_BASE_POSITION, MINE_BASE_STATION_POSITION, ...module.exports }
+
+module.exports = {LUBER_BASE_POSITION: LUMBER_BASE_POSITION, MINE_BASE_POSITION, MINE_BASE_STATION_POSITION, LUBER_BASE_STATION_POSITION: LUMBER_BASE_STATION_POSITION, LUBER_BASE_POSITION: LUMBER_BASE_POSITION,FOOD_STATION_POSITION, ...module.exports }

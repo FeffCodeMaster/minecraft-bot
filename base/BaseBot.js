@@ -8,7 +8,7 @@ const BASE_BOT_STATUS_SLEEPING = "SLEEPING";
 const BASE_BOT_STATUS_NEEDS_FOOD = "NEEDS_FOOD";
 
 class BaseBot {
-  constructor(username, work, stop, basePosition, importantCommunication = false) {
+  constructor(username, work, stop, basePosition, workingState,importantCommunication = false) {
     const MESSAGE_IDLE = "IDLE";
     const MESSAGE_WORKING = "WORKING";
 
@@ -33,8 +33,13 @@ class BaseBot {
 
     this.messageStatus = MESSAGE_IDLE;
     this.baseBotStatus = BASE_BOT_STATUS_IDLE;
-
     this.isCurrentlyDay = false;
+
+    this.needsFood = false;
+    this.foodTimer = null;
+    this.foodInterval = 60000;
+
+    this.workingState = workingState;
   
 
     this.bot.on('spawn', () => {
@@ -85,7 +90,7 @@ class BaseBot {
           this.bot.chat(`My position is ${this.bot.entity.position}`);
         }
         else if (action.toLowerCase() === 'status') {
-          this.bot.chat(`I am ${this.baseBotStatus}`);
+          this.bot.chat(`My base status is ${this.baseBotStatus}, and working status is ${this.workingState}`);
         }
         else if (action.toLowerCase() === 'time') {
           this.bot.chat(`It is ${this.isCurrentlyDay ? 'day' : 'night'}!`);
@@ -102,6 +107,7 @@ class BaseBot {
       handleMessageQueue();
       handleDayTime();
       handleSleep();
+      handleFood();
     });
 
     const handleDayTime = () => {
@@ -147,6 +153,17 @@ class BaseBot {
             work();
           }
         });
+      }
+    }
+
+    const handleFood = () => {
+      if(this.baseBotStatus === BASE_BOT_STATUS_IDLE) {
+        if(!this.foodTimer) {
+          this.foodTimer = setTimeout(() => {
+            this.bot.chat(`health ${this.bot.health} hunger ${this.bot.food}`);
+            this.foodTimer = null;
+          }, this.foodInterval);
+        }
       }
     }
 
@@ -215,7 +232,7 @@ function moveToPosition(position, bot) {
 
 function returnToBase(baseBot, action) {
   baseBot.bot.chat('Returning to base...');
-  const goal = new GoalNear(baseBot.basePosition.x, baseBot.basePosition.y, baseBot.basePosition.z, 5);
+  const goal = new GoalNear(baseBot.basePosition.x, baseBot.basePosition.y, baseBot.basePosition.z, 2);
   baseBot.bot.pathfinder.setGoal(goal);
 
   baseBot.bot.once('goal_reached', () => {

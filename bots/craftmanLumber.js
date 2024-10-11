@@ -1,6 +1,6 @@
 const { BaseBot, returnToBase, chat } = require('../base/BaseBot.js');
 const { pathfinder, Movements, goals: { GoalNear } } = require('mineflayer-pathfinder');
-const {LUBER_BASE_POSITION} = require('../constants/bases.js');
+const {LUBER_BASE_STATION_POSITION} = require('../constants/bases.js');
 
 
 const AXE_THRESHOLD = 5;
@@ -215,7 +215,7 @@ function findNearbyCraftingTable() {
 const arguments = process.argv.slice(2);
 const botName = arguments[0] || "CraftmanLumber";
 
-const baseBot = new BaseBot(botName, work, stop, LUBER_BASE_POSITION, true);
+const baseBot = new BaseBot(botName, work, stop, LUBER_BASE_STATION_POSITION, true);
 
 baseBot.bot.on('physicTick', () => {
     if (state === STARTWORKING) {

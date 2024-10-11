@@ -17,6 +17,8 @@ const GETTING_BACK_TO_POSITION = "GETTING_BACK_TO_POSITION";
 const WORKING = "WORKING";
 
 const STONE_TYPES = [
+    'raw_copper',
+    'raw_iron',
     'stone', 
     'cobblestone', 
     'granite', 
@@ -252,7 +254,7 @@ async function storeLogsInChest() {
 const arguments = process.argv.slice(2);
 const botName = arguments[0] || "Miner";
 
-const baseBot = new BaseBot(botName, work, stop, MINE_BASE_POSITION);
+const baseBot = new BaseBot(botName, work, stop, MINE_BASE_POSITION, WORKER_STATE);
 
 
 baseBot.bot.on('physicTick', () => {
