@@ -1,35 +1,54 @@
 const mineflayer = require('mineflayer');
 const { pathfinder, Movements, goals: { GoalNear } } = require('mineflayer-pathfinder');
+const { findBlockAndGoToBlock } = require('../helpers/findBlock.js');
 
+const BASE_BOT_STATUS_IDLE = "IDLE";
+const BASE_BOT_STATUS_SLEEP = "SLEEP";
+const BASE_BOT_STATUS_SLEEPING = "SLEEPING";
+const BASE_BOT_STATUS_NEEDS_FOOD = "NEEDS_FOOD";
 
 class BaseBot {
   constructor(username, work, stop, basePosition, importantCommunication = false) {
+    const MESSAGE_IDLE = "IDLE";
+    const MESSAGE_WORKING = "WORKING";
+
+    const INTERVAL_BETWEEN_MESSAGES = 1250;
+
     const options = {
       host: 'localhost',
       port: 25565,
       username: username
     };
-    this.fullStatus = importantCommunication;
     this.bot = mineflayer.createBot(options);
     this.bot.loadPlugin(pathfinder);
+
+    this.fullStatus = importantCommunication;
+
     this.intervalBetweenReports = null;
     this.intervalBetweenReportsTime = 30000;
     this.noReportCounter = 0;
+
     this.basePosition = basePosition;
+    this.messageQueue = [];
+
+    this.messageStatus = MESSAGE_IDLE;
+    this.baseBotStatus = BASE_BOT_STATUS_IDLE;
+
+    this.isCurrentlyDay = false;
+  
 
     this.bot.on('spawn', () => {
-      // Set up default movements
       const defaultMove = new Movements(this.bot, this.bot.mcData);
       this.bot.pathfinder.setMovements(defaultMove);
     });
 
-    // setting up base chat commands
     this.bot.on('chat', (username, message) => {
       if (username === this.bot.username) return;
 
       const commands = message.split(' ');
 
       if (commands[0] === this.bot.username) {
+
         const player = this.bot.players[username];
         const action = commands[1];
         if (action.toLowerCase() === 'come') {
@@ -52,9 +71,8 @@ class BaseBot {
         } else if (action.toLowerCase() === 'return') {
           this.bot.chat('I will return to base now.');
           moveToPosition(this.basePosition, this.bot);
-        } else if (action.toLowerCase() === 'status') {
+        } else if (action.toLowerCase() === 'speak') {
           this.fullStatus = !this.fullStatus;
-
           if (this.fullStatus) {
             this.bot.chat('Status report: Full');
           } else {
@@ -63,10 +81,107 @@ class BaseBot {
         } else if (action.toLowerCase() === 'deposit') {
           dumpAllItems(this.bot);
         }
+        else if (action.toLowerCase() === 'position') {
+          this.bot.chat(`My position is ${this.bot.entity.position}`);
+        }
+        else if (action.toLowerCase() === 'status') {
+          this.bot.chat(`I am ${this.baseBotStatus}`);
+        }
+        else if (action.toLowerCase() === 'time') {
+          this.bot.chat(`It is ${this.isCurrentlyDay ? 'day' : 'night'}!`);
+        }
+        else if (action.toLowerCase() === 'sleep') {
+          this.bot.chat('I will sleep now.');
+          this.baseBotStatus = BASE_BOT_STATUS_SLEEP;
+          stop();
+        }
       }
     });
+
+    this.bot.on('physicTick', () => {
+      handleMessageQueue();
+      handleDayTime();
+      handleSleep();
+    });
+
+    const handleDayTime = () => {
+      if(this.isCurrentlyDay !== this.bot.time.isDay) {
+        this.isCurrentlyDay = this.bot.time.isDay;
+        if(this.isCurrentlyDay) {
+          this.baseBotStatus = BASE_BOT_STATUS_IDLE;
+          work();
+        } else {
+          this.baseBotStatus = BASE_BOT_STATUS_SLEEP;
+          stop();
+        }
+      }
+    }
+
+    const handleSleep = () => {
+      if(this.baseBotStatus === BASE_BOT_STATUS_SLEEP && !this.isCurrentlyDay) {
+        this.bot.chat('Time for bed!');
+        this.baseBotStatus = BASE_BOT_STATUS_SLEEPING;
+
+        returnToBase(this, () =>{
+          setTimeout(() => {
+            findBlockAndGoToBlock(this, 'bed', 32, (bedBlock) => {
+              this.bot.sleep(bedBlock, (error) => {
+                if(error) {
+                  this.bot.chat(`Error sleeping: ${error}`);
+                } else {
+                  this.bot.chat('Sleeping...');
+                }
+              });
+          });
+          }, 1000);
+        });
+      } 
+      else if (this.baseBotStatus === BASE_BOT_STATUS_SLEEPING && this.isCurrentlyDay) {
+        this.bot.wake((err) => {
+          if (err) {
+            this.bot.chat("I'm not sleeping!");
+            console.error(err);
+          } else {
+            this.bot.chat("Good morning! I'm awake now.");
+            this.baseBotStatus = BASE_BOT_STATUS_IDLE;
+            work();
+          }
+        });
+      }
+    }
+
+    const handleMessageQueue = () => {
+      if (this.messageQueue.length > 0 && this.messageStatus === MESSAGE_IDLE) {
+        clearTimeout(this.intervalBetweenReports);
+        this.messageStatus = MESSAGE_WORKING;
+        const message = this.messageQueue.shift();
+
+        if (this.fullStatus || message.important) {
+          this.bot.chat(message.message);
+        }
+
+        setTimeout(() => this.messageStatus = MESSAGE_IDLE, INTERVAL_BETWEEN_MESSAGES);
+      } else if (this.messageQueue.length === 0) {
+        if (!this.intervalBetweenReports) {
+          this.intervalBetweenReports = setTimeout(() => {
+            this.bot.chat("I haven't reported to base for a while.", true);
+            this.noReportCounter++;
+
+            if (this.noReportCounter >= 1) {
+              this.noReportCounter = 0;
+              if(this.baseBotStatus === BASE_BOT_STATUS_IDLE) {
+                returnToBase(this);
+              }
+            }
+            clearTimeout(this.intervalBetweenReports);
+          }, this.intervalBetweenReportsTime);
+        }
+      }
+    }
   }
 }
+
+
 
 async function dumpAllItems(bot) {
   const items = bot.inventory.items();  // Get all items in the bot's inventory
@@ -78,11 +193,9 @@ async function dumpAllItems(bot) {
 
   bot.chat(`I have ${items.length} items. Dropping them now...`);
 
-  // Loop through each item and drop it
   for (const item of items) {
     try {
-      setTimeout(() => bot.toss(item.type, null, item.count), 1000);  // Drop the entire stack of the item
-      bot.chat(`Dropped ${item.count} ${item.name}(s).`);
+      setTimeout(() => bot.toss(item.type, null, item.count), 1000);  
     } catch (err) {
       bot.chat(`Failed to drop ${item.name}: ${err.message}`);
     }
@@ -101,7 +214,8 @@ function moveToPosition(position, bot) {
 }
 
 function returnToBase(baseBot, action) {
-  const goal = new GoalNear(baseBot.basePosition.x, baseBot.basePosition.y, baseBot.basePosition.z, 10);
+  baseBot.bot.chat('Returning to base...');
+  const goal = new GoalNear(baseBot.basePosition.x, baseBot.basePosition.y, baseBot.basePosition.z, 5);
   baseBot.bot.pathfinder.setGoal(goal);
 
   baseBot.bot.once('goal_reached', () => {
@@ -113,25 +227,8 @@ function returnToBase(baseBot, action) {
   });
 }
 
-function chat(baseBot, message, important) {
-  clearTimeout(baseBot.intervalBetweenReports);
-  if (baseBot.fullStatus || important) {
-    baseBot.bot.chat(message);
-  }
-
-  baseBot.intervalBetweenReports = setTimeout(() => {
-    chat(baseBot, "I haven't reported to base for a while.", true);
-    baseBot.noReportCounter++;
-
-    if (baseBot.noReportCounter >= 1) {
-      baseBot.noReportCounter = 0;
-
-      returnToBase(baseBot);
-    }
-
-  }, baseBot.intervalBetweenReportsTime);
+async function chat(baseBot, message, important) {
+  baseBot.messageQueue.push({ baseBot, message, important: important });
 }
 
-
-
-module.exports = { BaseBot, returnToBase, chat, ...module.exports }
+module.exports = { BaseBot, returnToBase, chat, BASE_BOT_STATUS_IDLE, BASE_BOT_STATUS_SLEEPING: BASE_BOT_STATUS_SLEEP, BASE_BOT_STATUS_NEEDS_FOOD, ...module.exports }

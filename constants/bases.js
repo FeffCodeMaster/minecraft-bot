@@ -6,11 +6,17 @@ const LUBER_BASE_POSITION = {
 }
 
 const MINE_BASE_POSITION = {
+    x: -20,
+    y: 59,
+    z: 75
+}
+
+const MINE_BASE_STATION_POSITION = {
     x: -23,
     y: 59,
-    z: 89
+    z: 90
 }
 
 
 
-module.exports = {LUBER_BASE_POSITION, MINE_BASE_POSITION, ...module.exports }
+module.exports = {LUBER_BASE_POSITION, MINE_BASE_POSITION, MINE_BASE_STATION_POSITION, ...module.exports }

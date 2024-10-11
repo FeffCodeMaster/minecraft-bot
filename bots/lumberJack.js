@@ -23,13 +23,14 @@ async function work() {
 
             returnToBase(baseBot, () => {setTimeout(work, MS_BETWEEN_ACTIONS)});
         } else {
-            setTimeout(findingBlockToChop, MS_BETWEEN_ACTIONS);
+            findingBlockToChop();
+            return;
         }
 
 
     } else {
         chat(baseBot, 'Searching for a block to chop.');
-        setTimeout(findingBlockToChop, MS_BETWEEN_ACTIONS);
+        findingBlockToChop();
     }
 }
 
@@ -46,13 +47,12 @@ function findingBlockToChop(){
 
         // Ignore the block if it's too high or too low to reach
         if (heightDifference > MAX_REACH_HEIGHT) {
-            chat(baseBot, `Ignoring ${woodBlock.name} as it is too high to reach.`);
             ignoredBlocks.push({
                 x: woodBlock.position.x,
                 y: woodBlock.position.y,
                 z: woodBlock.position.z,
             });
-            setTimeout(findingBlockToChop, MS_BETWEEN_ACTIONS);  // Search for another block
+            findingBlockToChop();  // Search for another block
         } else {
             chat(baseBot, 'Found reachable wood.');
             moveToBlockAndChop(woodBlock);
@@ -60,7 +60,6 @@ function findingBlockToChop(){
     } else {
         chat(baseBot, 'No wood nearby. I will rest now.', true);
         setTimeout(() => {returnToBase(baseBot)}, MS_BETWEEN_ACTIONS);
-        stop();
     }
 }
 

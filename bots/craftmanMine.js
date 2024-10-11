@@ -1,6 +1,6 @@
 const { BaseBot, returnToBase, chat } = require('../base/BaseBot.js');
 const { pathfinder, Movements, goals: { GoalNear } } = require('mineflayer-pathfinder');
-const {MINE_BASE_POSITION} = require('../constants/bases.js');
+const {MINE_BASE_STATION_POSITION} = require('../constants/bases.js');
 
 
 const PICKAXE_THRESHOLD = 5;
@@ -12,7 +12,7 @@ const WORKING = "WORKING";
 
 let state = IDLE;
 let workTimeout = null;
-const workInterval = 45000;
+const workInterval = 30000;
 
 async function work() {
     state = STARTWORKING;
@@ -115,7 +115,7 @@ async function withdrawMaterialsFromChest() {
             }
         }
         chest.close();
-        setTimeout(verifyPickaxeCount, workInterval);
+        workTimeout = setTimeout(verifyPickaxeCount, workInterval);
     });
 
   }
@@ -192,7 +192,7 @@ function depositPickaxeInChest() {
         }
 
         chest.close();
-        setTimeout(verifyPickaxeCount, workInterval);
+        workTimeout = setTimeout(verifyPickaxeCount, workInterval);
     })
 }
 
@@ -218,7 +218,7 @@ function findNearbyCraftingTable() {
 const arguments = process.argv.slice(2);
 const botName = arguments[0] || "CraftmanMine";
 
-const baseBot = new BaseBot(botName, work, stop, MINE_BASE_POSITION, true);
+const baseBot = new BaseBot(botName, work, stop, MINE_BASE_STATION_POSITION, true);
 
 baseBot.bot.on('physicTick', () => {
     if (state === STARTWORKING) {

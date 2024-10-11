@@ -1,17 +1,28 @@
 const { pathfinder, Movements, goals: { GoalNear } } = require('mineflayer-pathfinder');
 
-async function findBlockAndGoToBlock(baseBot, blockName, maxDistance, action) {
+function findBlockAndGoToBlock(baseBot, blockName, maxDistance, action) {
     const block = baseBot.bot.findBlock({
-        matching: block => block.name === blockName,
+        matching: block => block.name === blockName || block.name.includes(blockName),
         maxDistance: maxDistance,
     });
+    if (!block) {
+        baseBot.bot.chat(`No ${blockName} found within ${maxDistance} blocks.`);
+        return;
+    } else {
+        baseBot.bot.chat(`Found ${blockName}!`);
+    }
+
+
 
     const goal = new GoalNear(block.position.x, block.position.y, block.position.z, 1);
     baseBot.bot.pathfinder.setGoal(goal);
 
-    baseBot.bot.once('goal_reached', async () => {
-        if(action) {
-            action(block);
+    baseBot.bot.once('goal_reached', () => {
+        baseBot.bot.chat(`Arrived at ${blockName}!`);
+        if (action) {
+            setTimeout(() => {
+                action(block);
+            }, 500);
         }
     })
 }
@@ -22,11 +33,13 @@ async function findAnyOfAndGoToBlock(baseBot, blockNames, maxDistance, action) {
         maxDistance: maxDistance,
     });
 
+
+
     const goal = new GoalNear(block.position.x, block.position.y, block.position.z, 1);
     baseBot.bot.pathfinder.setGoal(goal);
 
     baseBot.bot.once('goal_reached', async () => {
-        if(action) {
+        if (action) {
             action(block);
         }
     })
@@ -35,8 +48,8 @@ async function findAnyOfAndGoToBlock(baseBot, blockNames, maxDistance, action) {
 function findAnyOfAndGoToBlockWithInBotHeight(baseBot, blockNames, maxDistance, action) {
     const block = baseBot.bot.findBlock({
         matching: block => {
-            return blockNames.includes(block.name); 
-          },
+            return blockNames.includes(block.name);
+        },
         maxDistance: maxDistance,
     });
 
@@ -44,7 +57,7 @@ function findAnyOfAndGoToBlockWithInBotHeight(baseBot, blockNames, maxDistance, 
     baseBot.bot.pathfinder.setGoal(goal);
 
     baseBot.bot.once('goal_reached', () => {
-        if(action) {
+        if (action) {
             action(block);
         }
     })
@@ -55,10 +68,10 @@ function goToBlock(baseBot, block, action) {
     baseBot.bot.pathfinder.setGoal(goal);
 
     baseBot.bot.once('goal_reached', () => {
-        if(action) {
+        if (action) {
             action(block);
         }
     })
 }
 
-module.exports = {findBlockAndGoToBlock, findAnyOfAndGoToBlock, findAnyOfAndGoToBlockWithInBotHeight, goToBlock, ...module.exports }
+module.exports = { findBlockAndGoToBlock, findAnyOfAndGoToBlock, findAnyOfAndGoToBlockWithInBotHeight, goToBlock, ...module.exports }
