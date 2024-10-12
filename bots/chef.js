@@ -51,7 +51,7 @@ const STARTED_COOKING = "STARTED_COOKING";
 
 const WAITING_FOR_COOKING = "WAITING_FOR_COOKING";
 
-const CHECK_COOKING_INTERVAL = 10000;
+const CHECK_COOKING_INTERVAL = 30000;
 
 let WORKING_STATE = IDLE;
 let PREVIOUS_STATE = null;
@@ -97,7 +97,7 @@ async function checkFurnaceProgress() {
 
 async function prepareToCook() {
     WORKING_STATE = PREPARING_TO_COOK;
-    chat(baseBot, 'Checking preparing to cook...', true);
+    chat(baseBot, 'Preparing the cooking...', true);
     try {
         const furnaceReady = await checkFurnaceReady();
         if (!furnaceReady) {
@@ -130,11 +130,12 @@ async function checkIngredients() {
             if (chestIngredients) {
                 chat(baseBot, 'Found ingredients in the chest.');
                 WORKING_STATE = STARTING_COOKING;
-            } else {
-                chat(baseBot, 'No ingredients found in the chest.');
-                WORKING_STATE = WAITING_FOR_COOKING;
+                return;
             }
         }
+
+        chat(baseBot, 'Nothing to cook right now...', true);
+        WORKING_STATE = WAITING_FOR_COOKING;
     } catch (error) {
         chat(baseBot, 'Error checking ingredients.');
         chat(baseBot, error.message);
@@ -151,7 +152,7 @@ async function startCooking() {
             chat(baseBot, 'Ingredients added to the furnace.');
             WORKING_STATE = CHECK_FURNACE;
         } else {
-            chat(baseBot, 'No ingredients found in my inventory when starting to cook.');
+            chat(baseBot, 'No ingredients found in my inventory when starting to cook.');c1
             WORKING_STATE = WAITING_FOR_COOKING;
         }
     } catch (error) {
@@ -330,9 +331,12 @@ async function checkChestForIngredientsAndWidthdraw() {
                 if (ingredient) {
                     chat(baseBot, `Found ${ingredient.count} ${ingredient.name}.`, true);
                     await chest.withdraw(ingredient.type, null, ingredient.count);
+                    chest.close();
+                    resolve(true);
+                } else {
+                    chest.close();
+                    resolve(false);
                 }
-                chest.close();
-                resolve(true);
             })
         } catch (error) {
             chat(baseBot, 'Error checking chest for ingredients.');

@@ -15,8 +15,8 @@ function findBlockAndGoToBlock(baseBot, blockName, maxDistance, action) {
 
     baseBot.bot.once('goal_reached', () => {
         if (action) {
-            setTimeout(() => {
-                action(block);
+            setTimeout(async () => {
+               await action(block);
             }, 500);
         }
     })

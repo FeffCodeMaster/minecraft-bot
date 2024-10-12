@@ -12,7 +12,7 @@ class BaseBot {
     const MESSAGE_IDLE = "IDLE";
     const MESSAGE_WORKING = "WORKING";
 
-    const INTERVAL_BETWEEN_MESSAGES = 1000;
+    let INTERVAL_BETWEEN_MESSAGES = 500;
 
     const options = {
       host: 'localhost',
@@ -39,7 +39,7 @@ class BaseBot {
     this.foodTimer = null;
     this.foodInterval = 60000;
 
-    this.workingState = workingState;
+    this.workingState = workingState; 
 
 
     this.bot.on('spawn', () => {
@@ -80,8 +80,10 @@ class BaseBot {
           this.fullStatus = !this.fullStatus;
           if (this.fullStatus) {
             this.bot.chat('Status report: Full');
+            INTERVAL_BETWEEN_MESSAGES = 1250;
           } else {
             this.bot.chat('Status report: Just improtant');
+            INTERVAL_BETWEEN_MESSAGES = 500;
           }
         } else if (action.toLowerCase() === 'drop') {
           dumpAllItems(this.bot);
@@ -102,9 +104,9 @@ class BaseBot {
         }
         else if (action.toLowerCase() === 'inventory') {
           const items = this.bot.inventory.items();
-          this.bot.chat(`My inventory contains ${items.length} items.`);
+          chat(this, `My inventory contains ${items.length} items.`, true);
           for (const item of items) {
-            this.bot.chat(`${item.count} ${item.name}`);
+            chat(this, `${item.count} ${item.name}`, true);
           }
         }
       }
@@ -137,7 +139,7 @@ class BaseBot {
 
         returnToBase(this, () => {
           setTimeout(() => {
-            findBlockAndGoToBlock(this, 'bed', 32, (bedBlock) => {
+            findBlockAndGoToBlock(this, 'bed', 5, (bedBlock) => {
               this.bot.sleep(bedBlock, (error) => {
                 if (error) {
                   this.bot.chat(`Error sleeping: ${error}`);
