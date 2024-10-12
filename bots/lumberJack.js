@@ -9,6 +9,8 @@ const MAX_DISTANCE_TO_CHOP = 5;
 const MS_BETWEEN_ACTIONS = 1250;
 const ignoredBlocks = [];  // Array to store ignored blockst
 
+let WORKING_STATE = "IDLE";
+
 // Work function for LumberJack to start chopping wood
 async function work() {
     if (!hasAxeEquipped()) {
@@ -322,4 +324,4 @@ async function storeLogsInChest() {
 const arguments = process.argv.slice(2);
 const botName = arguments[0] || "LumberJack";
 
-const baseBot = new BaseBot(botName, work, stop, LUBER_BASE_POSITION);
+const baseBot = new BaseBot(botName, work, stop, LUBER_BASE_POSITION, WORKING_STATE);

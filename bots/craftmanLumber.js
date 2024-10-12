@@ -215,7 +215,7 @@ function findNearbyCraftingTable() {
 const arguments = process.argv.slice(2);
 const botName = arguments[0] || "CraftmanLumber";
 
-const baseBot = new BaseBot(botName, work, stop, LUBER_BASE_STATION_POSITION, true);
+const baseBot = new BaseBot(botName, work, stop, LUBER_BASE_STATION_POSITION, state, true);
 
 baseBot.bot.on('physicTick', () => {
     if (state === STARTWORKING) {

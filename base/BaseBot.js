@@ -8,11 +8,11 @@ const BASE_BOT_STATUS_SLEEPING = "SLEEPING";
 const BASE_BOT_STATUS_NEEDS_FOOD = "NEEDS_FOOD";
 
 class BaseBot {
-  constructor(username, work, stop, basePosition, workingState,importantCommunication = false) {
+  constructor(username, work, stop, basePosition, workingState, importantCommunication = false) {
     const MESSAGE_IDLE = "IDLE";
     const MESSAGE_WORKING = "WORKING";
 
-    const INTERVAL_BETWEEN_MESSAGES = 1250;
+    const INTERVAL_BETWEEN_MESSAGES = 1000;
 
     const options = {
       host: 'localhost',
@@ -40,7 +40,7 @@ class BaseBot {
     this.foodInterval = 60000;
 
     this.workingState = workingState;
-  
+
 
     this.bot.on('spawn', () => {
       const defaultMove = new Movements(this.bot, this.bot.mcData);
@@ -83,7 +83,7 @@ class BaseBot {
           } else {
             this.bot.chat('Status report: Just improtant');
           }
-        } else if (action.toLowerCase() === 'deposit') {
+        } else if (action.toLowerCase() === 'drop') {
           dumpAllItems(this.bot);
         }
         else if (action.toLowerCase() === 'position') {
@@ -100,6 +100,13 @@ class BaseBot {
           this.baseBotStatus = BASE_BOT_STATUS_SLEEP;
           stop();
         }
+        else if (action.toLowerCase() === 'inventory') {
+          const items = this.bot.inventory.items();
+          this.bot.chat(`My inventory contains ${items.length} items.`);
+          for (const item of items) {
+            this.bot.chat(`${item.count} ${item.name}`);
+          }
+        }
       }
     });
 
@@ -111,9 +118,9 @@ class BaseBot {
     });
 
     const handleDayTime = () => {
-      if(this.isCurrentlyDay !== this.bot.time.isDay) {
+      if (this.isCurrentlyDay !== this.bot.time.isDay) {
         this.isCurrentlyDay = this.bot.time.isDay;
-        if(this.isCurrentlyDay) {
+        if (this.isCurrentlyDay) {
           this.baseBotStatus = BASE_BOT_STATUS_IDLE;
           work();
         } else {
@@ -124,24 +131,24 @@ class BaseBot {
     }
 
     const handleSleep = () => {
-      if(this.baseBotStatus === BASE_BOT_STATUS_SLEEP && !this.isCurrentlyDay) {
+      if (this.baseBotStatus === BASE_BOT_STATUS_SLEEP && !this.isCurrentlyDay) {
         this.bot.chat('Time for bed!');
         this.baseBotStatus = BASE_BOT_STATUS_SLEEPING;
 
-        returnToBase(this, () =>{
+        returnToBase(this, () => {
           setTimeout(() => {
             findBlockAndGoToBlock(this, 'bed', 32, (bedBlock) => {
               this.bot.sleep(bedBlock, (error) => {
-                if(error) {
+                if (error) {
                   this.bot.chat(`Error sleeping: ${error}`);
                 } else {
                   this.bot.chat('Sleeping...');
                 }
               });
-          });
+            });
           }, 1000);
         });
-      } 
+      }
       else if (this.baseBotStatus === BASE_BOT_STATUS_SLEEPING && this.isCurrentlyDay) {
         this.bot.wake((err) => {
           if (err) {
@@ -157,14 +164,7 @@ class BaseBot {
     }
 
     const handleFood = () => {
-      if(this.baseBotStatus === BASE_BOT_STATUS_IDLE) {
-        if(!this.foodTimer) {
-          this.foodTimer = setTimeout(() => {
-            this.bot.chat(`health ${this.bot.health} hunger ${this.bot.food}`);
-            this.foodTimer = null;
-          }, this.foodInterval);
-        }
-      }
+      //should rewrite this to be event based. "HEALTH" Fires when your hp or food change.
     }
 
     const handleMessageQueue = () => {
@@ -186,7 +186,7 @@ class BaseBot {
 
             if (this.noReportCounter >= 1) {
               this.noReportCounter = 0;
-              if(this.baseBotStatus === BASE_BOT_STATUS_IDLE) {
+              if (this.baseBotStatus === BASE_BOT_STATUS_IDLE) {
                 returnToBase(this);
               }
             }
@@ -212,7 +212,7 @@ async function dumpAllItems(bot) {
 
   for (const item of items) {
     try {
-      setTimeout(() => bot.toss(item.type, null, item.count), 1000);  
+      setTimeout(() => bot.toss(item.type, null, item.count), 1000);
     } catch (err) {
       bot.chat(`Failed to drop ${item.name}: ${err.message}`);
     }
@@ -238,7 +238,6 @@ function returnToBase(baseBot, action) {
   baseBot.bot.once('goal_reached', () => {
     baseBot.bot.chat('I am here!');
     if (action) {
-      baseBot.bot.chat('Doing my action when returning to base.');
       action();
     }
   });

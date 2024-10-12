@@ -8,17 +8,12 @@ function findBlockAndGoToBlock(baseBot, blockName, maxDistance, action) {
     if (!block) {
         baseBot.bot.chat(`No ${blockName} found within ${maxDistance} blocks.`);
         return;
-    } else {
-        baseBot.bot.chat(`Found ${blockName}!`);
-    }
-
-
+    } 
 
     const goal = new GoalNear(block.position.x, block.position.y, block.position.z, 1);
     baseBot.bot.pathfinder.setGoal(goal);
 
     baseBot.bot.once('goal_reached', () => {
-        baseBot.bot.chat(`Arrived at ${blockName}!`);
         if (action) {
             setTimeout(() => {
                 action(block);
@@ -63,7 +58,7 @@ function findAnyOfAndGoToBlockWithInBotHeight(baseBot, blockNames, maxDistance, 
     })
 }
 
-function goToBlock(baseBot, block, action) {
+async function goToBlock(baseBot, block, action) {
     const goal = new GoalNear(block.position.x, block.position.y, block.position.z, 0);
     baseBot.bot.pathfinder.setGoal(goal);
 
@@ -74,4 +69,28 @@ function goToBlock(baseBot, block, action) {
     })
 }
 
-module.exports = { findBlockAndGoToBlock, findAnyOfAndGoToBlock, findAnyOfAndGoToBlockWithInBotHeight, goToBlock, ...module.exports }
+async function moveToPosition(baseBot, position, timeout = null) {
+    return new Promise((resolve, reject) => {
+        const goal = new GoalNear(position.x, position.y, position.z, 1);
+        baseBot.bot.pathfinder.setGoal(goal);
+
+        baseBot.bot.once('goal_reached', () => {
+            resolve(true);
+        })
+
+        let timeoutId = null;
+        if (timeout) {
+            timeoutId = setTimeout(() => {
+                baseBot.bot.chat('I couldn’t reach the position in time.');
+                baseBot.bot.pathfinder.setGoal(null); // Stop the bot
+                reject(new Error('Timeout: Unable to reach position in time'));
+            }, timeout);
+        }
+
+        baseBot.bot.once('goal_reached', () => {
+            clearTimeout(timeoutId);
+        });
+    })
+}
+
+module.exports = { findBlockAndGoToBlock, findAnyOfAndGoToBlock, findAnyOfAndGoToBlockWithInBotHeight, goToBlock, moveToPosition, ...module.exports }
